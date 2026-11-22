@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light" />
+  <title>페어 아카이브 — 페어 타임라인 제작기</title>
+  <style>
+    :root {
+      --ink: #191919;
+      --muted: #737373;
+      --line: #dedede;
+      --paper: #ffffff;
+      --surface: #f7f7f7;
+      --sans: "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans); font-size: 14px; -webkit-font-smoothing: antialiased; }
+    button, input, textarea { font: inherit; }
+    button { cursor: pointer; }
+    button:disabled { cursor: not-allowed; opacity: .35; }
+    :focus-visible { outline: 2px solid #171717; outline-offset: 3px; }
+    .header { border-bottom: 1px solid var(--line); background: white; }
+    .header-inner { max-width: 1500px; margin: auto; min-height: 76px; padding: 0 36px; display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+    .brand { font-weight: 900; display: flex; align-items: center; letter-spacing: -.06em; font-size: 20px; gap: 11px; }
+    .brand-symbol { width: 23px; height: 23px; border-radius: 50%; border: 7px solid var(--ink); display: block; }
+    .brand small { letter-spacing: .18em; font-size: 9px; font-weight: 750; margin-top: 2px; }
+    .header-side { display: flex; gap: 24px; align-items: center; color: var(--muted); font-size: 11px; letter-spacing: .12em; font-weight: 700; }
+    .header-side span:not(:last-child) { border-right: 1px solid var(--line); padding-right: 24px; }
+    .intro { max-width: 1500px; margin: auto; padding: 46px 36px 37px; display: flex; align-items: end; justify-content: space-between; gap: 25px; }
+    .eyebrow { display: block; color: var(--muted); font-size: 11px; letter-spacing: .18em; font-weight: 800; margin-bottom: 12px; }
+    h1 { font-size: clamp(30px, 3.6vw, 49px); line-height: 1.16; letter-spacing: -.072em; margin: 0; font-weight: 800; word-break: keep-all; }
+    .intro p { margin: 0 0 4px; color: var(--muted); line-height: 1.8; font-size: 13px; text-align: right; word-break: keep-all; }
+    .workspace { max-width: 1500px; margin: 0 auto 84px; padding: 0 36px; display: grid; grid-template-columns: minmax(355px, 440px) minmax(0, 1fr); gap: 28px; align-items: start; }
+    .editor { border: 1px solid var(--line); background: white; }
+    .editor-head { padding: 26px 28px 23px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: start; gap: 16px; }
+    .editor-head strong { font-size: 18px; letter-spacing: -.05em; }
+    .editor-head p { color: var(--muted); font-size: 11px; margin: 7px 0 0; line-height: 1.6; }
+    .autosave { white-space: nowrap; padding: 6px 9px; background: #f4f4f4; color: #656565; font-size: 10px; font-weight: 750; letter-spacing: -.02em; }
+    .editor-section { padding: 25px 28px 28px; border-bottom: 1px solid var(--line); }
+    .section-label { font-size: 10px; letter-spacing: .13em; font-weight: 850; color: #777; display: block; margin-bottom: 9px; }
+    .editor-section h2 { font-size: 18px; letter-spacing: -.055em; margin: 0 0 21px; font-weight: 800; }
+    .field-label { display: block; font-weight: 750; font-size: 12px; margin: 0 0 8px; }
+    .field-control { background: #fff; color: var(--ink); border: 1px solid #d1d1d1; border-radius: 0; display: block; width: 100%; padding: 11px 12px; outline: none; min-width: 0; min-height: 43px; transition: border-color .13s; }
+    .field-control:focus { border-color: #222; outline: none; box-shadow: inset 0 0 0 1px #222; }
+    .field-control::placeholder { color: #a4a4a4; }
+    textarea.field-control { resize: vertical; min-height: 64px; line-height: 1.55; }
+    .pair-field { margin-bottom: 22px; }
+    .profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+    .profile-card { border: 1px solid var(--line); padding: 16px 12px 14px; min-width: 0; }
+    .profile-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .profile-id { font-size: 10px; letter-spacing: .1em; font-weight: 850; }
+    .photo-upload { width: 82px; height: 82px; margin: auto auto 12px; border-radius: 50%; background: #252525; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; overflow: hidden; position: relative; cursor: pointer; font-weight: 750; text-align: center; }
+    .photo-upload img { height: 100%; width: 100%; object-fit: cover; display: none; }
+    .photo-upload .upload-prompt { line-height: 1.5; font-size: 10px; }
+    .photo-upload input { position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer; inset: 0; }
+    .photo-upload:focus-within { outline: 2px solid #222; outline-offset: 4px; }
+    .photo-help { font-size: 10px; text-align: center; color: var(--muted); margin-bottom: 14px; }
+    .profile-card .field-label { font-size: 11px; }
+    .profile-card .field-control { padding: 10px 9px; font-size: 12px; }
+    .profile-card .mini-button { margin-top: 8px; }
+    .mini-button { display: inline-flex; border: 0; background: transparent; color: #777; padding: 4px 0; font-size: 11px; text-decoration: underline; text-underline-offset: 2px; }
+    .mini-button:hover { color: #000; }
+    .section-description { font-size: 12px; line-height: 1.7; color: var(--muted); margin: -9px 0 19px; }
+    .add-actions { display: grid; grid-template-columns: 1fr 1.18fr 1fr; gap: 7px; margin-bottom: 20px; }
+    .add-button { min-height: 43px; padding: 9px 5px; background: #fff; border: 1px solid #bcbcbc; font-weight: 800; font-size: 11px; transition: .15s; letter-spacing: -.025em; }
+    .add-button:hover { background: #f1f1f1; border-color: #222; }
+    .add-button.common { background: #252525; color: white; border-color: #252525; }
+    .add-button.common:hover { background: #474747; }
+    .event-list { display: flex; flex-direction: column; gap: 10px; }
+    .event-card { border: 1px solid #dbdbdb; background: #fff; }
+    .event-card-head { display: flex; padding: 10px 11px; justify-content: space-between; align-items: center; border-bottom: 1px solid #ebebeb; gap: 4px; }
+    .event-badge { display: flex; align-items: center; gap: 7px; font-size: 10px; font-weight: 850; letter-spacing: .04em; }
+    .event-indicator { width: 7px; height: 7px; background: #2a2a2a; border-radius: 50%; }
+    .event-card.common-event .event-indicator { border-radius: 0; width: 8px; height: 8px; }
+    .event-controls { display: flex; align-items: center; gap: 1px; }
+    .icon-button { width: 26px; height: 27px; border: 0; background: transparent; color: #636363; font-size: 15px; display: inline-flex; align-items: center; justify-content: center; }
+    .icon-button:hover:not(:disabled) { background: #ededed; color: black; }
+    .icon-button.danger:hover:not(:disabled) { background: #222; color: white; }
+    .event-card-body { padding: 13px; }
+    .event-fields { display: grid; grid-template-columns: .85fr 1.15fr; gap: 9px; margin-bottom: 10px; }
+    .event-card label { font-size: 10px; color: #777; font-weight: 750; margin-bottom: 5px; display: block; }
+    .event-card .field-control { font-size: 12px; min-height: 36px; padding: 8px 9px; }
+    .event-card textarea.field-control { min-height: 62px; }
+    .parallel-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 9px 13px; margin: 11px 0 2px; }
+    .parallel-checkbox { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; font-size: 11px; color: #555; line-height: 1.55; }
+    .parallel-checkbox input { width: 15px; height: 15px; margin: 0; accent-color: #252525; cursor: pointer; }
+    .parallel-tools .parallel-add { font-weight: 750; }
+    .parallel-status { font-size: 10px; color: #727272; font-weight: 650; }
+    /* 편집용 텍스트 입력칸은 항상 흰색으로 표시합니다. */
+    #eventList .field-control { background: #ffffff; color: #191919; }
+    #eventList .field-control::placeholder { color: #a4a4a4; }
+    .name-field-row { display: flex; align-items: center; gap: 7px; min-width: 0; }
+    .name-field-row .field-control { min-width: 0; flex: 1; }
+    .name-color-picker { flex: 0 0 37px; width: 37px !important; min-width: 37px !important; height: 43px; }
+    .pair-color-row { display: flex; align-items: center; gap: 7px; min-width: 0; }
+    .pair-color-row > .field-control:not(.color-hex) { flex: 1; min-width: 0; }
+    .pair-color-row .pair-color-picker { flex: 0 0 37px; width: 37px; min-width: 37px; height: 43px; }
+    .pair-color-row .pair-color-hex { flex: 0 0 86px; width: 86px; min-width: 0; font-size: 11px; }
+    .event-color-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-top: 14px; padding-top: 12px; border-top: 1px solid #ebebeb; }
+    .event-color-item { min-width: 0; }
+    .event-color-item .color-row { gap: 5px; }
+    .event-color-item .color-picker { height: 36px; width: 36px; min-width: 36px; padding: 3px; }
+    .event-color-item .color-hex.field-control { height: 36px; min-height: 36px; padding: 6px 5px; font-size: 11px; }
+    .color-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 17px 12px; }
+    .color-item { min-width: 0; }
+    .color-label { display: block; font-size: 11px; font-weight: 750; margin-bottom: 8px; }
+    .color-row { display: flex; align-items: stretch; gap: 7px; min-width: 0; }
+    .color-picker { width: 43px; min-width: 43px; height: 43px; padding: 4px; background: white; border: 1px solid #c9c9c9; border-radius: 0; cursor: pointer; }
+    .color-picker::-webkit-color-swatch-wrapper { padding: 0; }
+    .color-picker::-webkit-color-swatch { border: 0; }
+    .color-picker::-moz-color-swatch { border: 0; }
+    .color-hex.field-control { padding: 10px 8px; font-size: 12px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; height: 43px; min-height: 43px; letter-spacing: -.02em; }
+    .color-hex.invalid { border-color: #c33; box-shadow: inset 0 0 0 1px #c33; }
+    .color-group-title { display: flex; align-items: baseline; justify-content: space-between; margin: 4px 0 13px; gap: 8px; }
+    .color-group-title strong { font-size: 12px; font-weight: 800; }
+    .color-group-title small { color: #888; font-size: 10px; }
+    .color-divider { height: 1px; background: var(--line); margin: 22px 0 19px; }
+    .color-reset { margin-top: 20px; }
+    .empty-events { background: #f8f8f8; padding: 28px 15px; font-size: 12px; color: #7e7e7e; text-align: center; line-height: 1.9; border: 1px dashed #ddd; }
+    .export-actions { display: grid; gap: 10px; }
+    .primary-button { background: #1c1c1c; color: white; border: 1px solid #1c1c1c; padding: 15px 20px; width: 100%; min-height: 50px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 800; }
+    .primary-button:hover { background: #444; }
+    .secondary-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+    .secondary-button { padding: 12px 6px; background: white; border: 1px solid #bdbdbd; font-size: 11px; font-weight: 750; min-height: 43px; }
+    .secondary-button:hover { background: #f3f3f3; }
+    .fineprint { font-size: 11px; color: var(--muted); line-height: 1.85; margin: 13px 0 0; }
+    .reset-row { display: flex; justify-content: space-between; padding: 16px 28px 19px; gap: 15px; align-items: center; }
+    .reset-row span { color: #999; font-size: 10px; }
+    .preview-panel { min-width: 0; position: sticky; top: 22px; }
+    .preview-top { border: 1px solid var(--line); border-bottom: 0; padding: 18px 21px; display: flex; align-items: center; justify-content: space-between; background: white; gap: 15px; }
+    .preview-title { display: flex; align-items: center; gap: 9px; font-size: 12px; font-weight: 800; }
+    .preview-live { width: 6px; height: 6px; border-radius: 50%; background: #191919; display: inline-block; }
+    .preview-top p { color: #777; font-size: 10px; margin: 4px 0 0; }
+    .preview-meta { font-size: 10px; letter-spacing: .075em; color: #888; font-weight: 700; }
+    .preview-frame { background: #f1f1f1; border: 1px solid var(--line); padding: clamp(15px, 3.2vw, 42px); overflow: auto; max-height: calc(100vh - 122px); min-height: 420px; scrollbar-color: #bbb #f1f1f1; }
+    .canvas-wrap { margin: 0 auto; max-width: 740px; min-width: 0; background: white; box-shadow: 0 7px 34px rgb(0 0 0 / 7%); line-height: 0; }
+    #previewCanvas { display: block; width: 100%; height: auto; background: white; }
+    .preview-foot { display: flex; justify-content: space-between; gap: 15px; margin-top: 12px; font-size: 10px; color: #909090; font-weight: 650; }
+    .preview-foot .shortcut { color: #5e5e5e; }
+    .toast { position: fixed; bottom: 25px; left: 50%; transform: translate(-50%,20px); background: #202020; color: white; padding: 12px 17px; font-size: 12px; font-weight: 700; z-index: 50; opacity: 0; transition: .2s; pointer-events: none; max-width: min(90vw, 500px); text-align: center; }
+    .toast.show { transform: translate(-50%,0); opacity: 1; }
+    .footer { border-top: 1px solid var(--line); margin: 0 auto; padding: 22px 36px 40px; max-width: 1500px; display: flex; justify-content: space-between; color: #999; font-size: 10px; letter-spacing: .08em; font-weight: 700; }
+    @media (max-width: 990px) {
+      .workspace { grid-template-columns: minmax(300px, 370px) minmax(0,1fr); gap: 18px; padding: 0 18px; }
+      .header-inner { padding: 0 20px; }
+      .intro { padding: 32px 20px; }
+      .editor-section { padding: 22px 18px; }
+      .editor-head { padding: 21px 18px; }
+      .reset-row { padding-inline: 18px; }
+      .preview-frame { padding: 14px; }
+    }
+    @media (max-width: 735px) {
+      .workspace { grid-template-columns: 1fr; padding: 0 15px; }
+      .intro { padding: 31px 16px 25px; display: block; }
+      .intro p { text-align: left; margin-top: 13px; }
+      .preview-panel { position: static; grid-row: 1; }
+      .preview-frame { max-height: 560px; min-height: 200px; }
+      .canvas-wrap { max-width: 500px; }
+      .header-inner { min-height: 66px; padding: 0 16px; }
+      .header-side { gap: 0; }
+      .header-side span:not(:last-child) { display: none; }
+      .editor { grid-row: 2; }
+      .footer { padding: 20px 15px; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
+  </style>
+</head>
+<body>
+  <header class="header"><div class="header-inner">
+    <div class="brand"><span class="brand-symbol" aria-hidden="true"></span><span>PAIR ARCHIVE</span><small>STUDIO</small></div>
+    <div class="header-side"><span>01 / TIMELINE MAKER</span></div>
+  </div></header>
+  <section class="intro">
+    <div><span class="eyebrow">DESIGN YOUR PAIR HISTORY</span></div>
+    
+  </section>
+  <main class="workspace">
+    <section class="editor" aria-label="페어 정보 편집">
+      <div class="editor-head"><div><strong>페어 정보 편집</strong><p>입력한 내용은 오른쪽 이미지에 바로 반영됩니다.</p></div><span class="autosave" id="saveStatus" aria-live="polite">자동 저장</span></div>
+      <section class="editor-section">
+        <span class="section-label">01 — PAIR & CHARACTERS</span><h2>기본 정보</h2>
+        <div class="pair-field"><label class="field-label" for="catchphrase">페어 캐치프레이즈 / 글자색</label><div class="pair-color-row"><input class="field-control" id="catchphrase" type="text" maxlength="100" placeholder="THE TWO OF US" autocomplete="off" /><input class="color-picker pair-color-picker" type="color" data-color-picker="catchphraseText" aria-label="페어 캐치프레이즈 글자색 선택" title="캐치프레이즈 글자색" /><input class="field-control color-hex pair-color-hex" type="text" inputmode="text" data-color-hex="catchphraseText" maxlength="7" spellcheck="false" aria-label="페어 캐치프레이즈 글자색 컬러코드" /></div></div>
+        <div class="pair-field"><label class="field-label" for="pairName">페어명 / 글자색</label><div class="pair-color-row"><input class="field-control" id="pairName" type="text" maxlength="100" placeholder="페어명을 입력하세요" autocomplete="off" /><input class="color-picker pair-color-picker" type="color" data-color-picker="pairNameText" aria-label="페어명 글자색 선택" title="페어명 글자색" /><input class="field-control color-hex pair-color-hex" type="text" inputmode="text" data-color-hex="pairNameText" maxlength="7" spellcheck="false" aria-label="페어명 글자색 컬러코드" /></div></div>
+        <div class="pair-field"><label class="field-label" for="topRightText">이미지 상단 오른쪽 문구</label><input class="field-control" id="topRightText" type="text" maxlength="100" placeholder="OUR STORY / OUR TIME" autocomplete="off" /></div>
+        <div class="profile-grid">
+          <div class="profile-card">
+            <div class="profile-card-top"><span class="profile-id">CHARACTER A</span><span aria-hidden="true">↗</span></div>
+            <label class="photo-upload" aria-label="캐릭터 A 사진 업로드"><img id="thumbA" alt="캐릭터 A 사진"/><span class="upload-prompt" id="promptA">+<br/>사진 선택</span><input id="imageA" aria-label="캐릭터 A 사진 선택" type="file" accept="image/*" /></label>
+            <div class="photo-help">클릭하여 갤러리에서 선택</div>
+            <label class="field-label" for="nameA">캐릭터 이름</label><div class="name-field-row"><input class="field-control" id="nameA" type="text" maxlength="100" autocomplete="off" placeholder="캐릭터 A" /><input class="color-picker name-color-picker" type="color" data-name-color="a" aria-label="캐릭터 A 이름 글자색 선택" title="캐릭터 A 이름 글자색" /></div>
+            <label class="field-label" for="captionA" style="margin-top:12px">사진 아래 작은 문구 / 보조 글자색</label><div class="name-field-row"><input class="field-control" id="captionA" type="text" maxlength="100" autocomplete="off" placeholder="CHARACTER A" /><input class="color-picker name-color-picker" type="color" data-secondary-color="a" aria-label="캐릭터 A 보조 글자색 선택" title="캐릭터 A 보조 글자색" /></div>
+            <button type="button" class="mini-button" id="clearA">사진 제거</button>
+          </div>
+          <div class="profile-card">
+            <div class="profile-card-top"><span class="profile-id">CHARACTER B</span><span aria-hidden="true">↗</span></div>
+            <label class="photo-upload" aria-label="캐릭터 B 사진 업로드"><img id="thumbB" alt="캐릭터 B 사진"/><span class="upload-prompt" id="promptB">+<br/>사진 선택</span><input id="imageB" aria-label="캐릭터 B 사진 선택" type="file" accept="image/*" /></label>
+            <div class="photo-help">클릭하여 갤러리에서 선택</div>
+            <label class="field-label" for="nameB">캐릭터 이름</label><div class="name-field-row"><input class="field-control" id="nameB" type="text" maxlength="100" autocomplete="off" placeholder="캐릭터 B" /><input class="color-picker name-color-picker" type="color" data-name-color="b" aria-label="캐릭터 B 이름 글자색 선택" title="캐릭터 B 이름 글자색" /></div>
+            <label class="field-label" for="captionB" style="margin-top:12px">사진 아래 작은 문구 / 보조 글자색</label><div class="name-field-row"><input class="field-control" id="captionB" type="text" maxlength="100" autocomplete="off" placeholder="CHARACTER B" /><input class="color-picker name-color-picker" type="color" data-secondary-color="b" aria-label="캐릭터 B 보조 글자색 선택" title="캐릭터 B 보조 글자색" /></div>
+            <button type="button" class="mini-button" id="clearB">사진 제거</button>
+          </div>
+        </div>
+      </section>
+      <section class="editor-section">
+        <span class="section-label">02 — MOMENTS & MEMORIES</span><h2>사건 타임라인 <span id="eventCount" style="font-size:12px;color:#777;font-weight:600"></span></h2>
+        <p class="section-description">개인 사건과 공통 사건을 필요한 만큼 추가하세요. 날짜가 같은 A·B 개인 사건을 연속해서 배치하면 같은 높이에 나란히 표시됩니다. 사건의 ‘+ 반대편 동시 사건 추가’ 기능으로도 쉽게 만들 수 있습니다. ↑ ↓ 버튼은 같은 행의 사건을 함께 이동합니다.</p>
+        <div class="add-actions" aria-label="사건 추가 버튼">
+          <button type="button" class="add-button" data-add="a">+ A 개인 사건</button>
+          <button type="button" class="add-button common" data-add="shared">+ 공통 사건</button>
+          <button type="button" class="add-button" data-add="b">+ B 개인 사건</button>
+        </div>
+        <div id="eventList" class="event-list" aria-live="polite"></div>
+      </section>
+      <section class="editor-section" aria-label="색상 편집">
+        <span class="section-label">03 — COLORS & STYLE</span><h2>색상 꾸미기</h2>
+        <p class="section-description">기본 색상과 공통 사건 색상은 아래에서 변경하세요. 페어 캐치프레이즈·페어명·캐릭터 이름색·보조 글자색은 기본 정보에서, 사건별 날짜·시기 글자색과 개인 사건 배경색·테두리색은 각 사건 입력칸에서 변경할 수 있습니다. 컬러코드도 직접 입력할 수 있습니다.</p>
+        <div class="color-group-title"><strong>기본 / 공통 사건 색상</strong><small>PNG 저장에 반영</small></div>
+        <div class="color-grid" id="canvasColorControls">
+          <div class="color-item"><label class="color-label" for="colorHexMainText">기본 글자 / 선 색상</label><div class="color-row"><input class="color-picker" type="color" data-color-picker="mainText" aria-label="기본 글자 / 선 색상 선택"><input id="colorHexMainText" class="field-control color-hex" type="text" inputmode="text" data-color-hex="mainText" maxlength="7" spellcheck="false" aria-label="기본 글자 / 선 컬러코드"></div></div>
+          <div class="color-item"><label class="color-label" for="colorHexSecondaryText">기타 보조 글자 색상</label><div class="color-row"><input class="color-picker" type="color" data-color-picker="secondaryText" aria-label="보조 글자 색상 선택"><input id="colorHexSecondaryText" class="field-control color-hex" type="text" inputmode="text" data-color-hex="secondaryText" maxlength="7" spellcheck="false" aria-label="보조 글자 컬러코드"></div></div>
+          <div class="color-item"><label class="color-label" for="colorHexSharedBg">공통 사건 칸 색상</label><div class="color-row"><input class="color-picker" type="color" data-color-picker="sharedBg" aria-label="공통 사건 칸 색상 선택"><input id="colorHexSharedBg" class="field-control color-hex" type="text" inputmode="text" data-color-hex="sharedBg" maxlength="7" spellcheck="false" aria-label="공통 사건 칸 컬러코드"></div></div>
+          <div class="color-item"><label class="color-label" for="colorHexSharedText">공통 사건 글자 색상</label><div class="color-row"><input class="color-picker" type="color" data-color-picker="sharedText" aria-label="공통 사건 글자 색상 선택"><input id="colorHexSharedText" class="field-control color-hex" type="text" inputmode="text" data-color-hex="sharedText" maxlength="7" spellcheck="false" aria-label="공통 사건 글자 컬러코드"></div></div>
+        </div>
+        <button id="resetColors" type="button" class="mini-button color-reset">색상만 기본값으로 되돌리기</button>
+      </section>
+      <section class="editor-section" style="border-bottom:0">
+        <span class="section-label">04 — SAVE & EXPORT</span><h2>완성본 저장</h2>
+        <div class="export-actions">
+          <button id="downloadPng" class="primary-button" type="button"><span>완성 이미지 PNG 다운로드</span><span aria-hidden="true">↗</span></button>
+          <div class="secondary-buttons"><button type="button" id="exportProject" class="secondary-button">프로젝트 파일 저장</button><button type="button" id="importProject" class="secondary-button">프로젝트 불러오기</button></div>
+          <input id="projectInput" type="file" accept=".json,application/json" hidden />
+        </div>
+        <p class="fineprint">PNG는 배경이 흰색인 고해상도 이미지로 저장됩니다. 프로젝트 파일(.json)을 보관하면 사진과 입력 내용을 나중에 다시 편집할 수 있습니다.</p>
+      </section>
+      <div class="reset-row"><button class="mini-button" type="button" id="resetButton">전체 초기화</button><span>입력 내용은 이 브라우저에도 자동 저장됩니다.</span></div>
+    </section>
+    <aside class="preview-panel" aria-label="완성 이미지 미리보기">
+      <div class="preview-top"><div><div class="preview-title"><i class="preview-live"></i> LIVE PREVIEW</div><p>실제 저장될 이미지 미리보기</p></div><div class="preview-meta" id="previewSize">900 PX · PNG</div></div>
+      <div class="preview-frame"><div class="canvas-wrap"><canvas id="previewCanvas" width="900" height="1100" role="img" aria-label="페어 캐릭터 사진과 사건을 표시하는 타임라인 이미지"></canvas></div></div>
+    </aside>
+  </main>
+  <div class="toast" id="toast" aria-live="polite"></div>
+<script>
+(function () {
+  'use strict';
+  const STORAGE_KEY = 'pair-archive-project-v1';
+  const W = 900;
+  const DEFAULT_COLORS = Object.freeze({
+    mainText:'#232323', secondaryText:'#797979', sharedBg:'#232323', sharedText:'#FFFFFF',
+    catchphraseText:'#232323', pairNameText:'#232323'
+  });
+  const DEFAULT_PERSONAL = Object.freeze({nameColor:'#232323', secondaryColor:'#797979', bgColor:'#FFFFFF', borderColor:'#DBDBDB'});
+  function normalizeHex(value, fallback=null) {
+    if(typeof value!=='string')return fallback;
+    const str=value.trim();
+    if(/^#[0-9a-f]{6}$/i.test(str))return str.toUpperCase();
+    if(/^#[0-9a-f]{3}$/i.test(str))return ('#'+Array.from(str.slice(1)).map(ch=>ch+ch).join('')).toUpperCase();
+    return fallback;
+  }
+  function cleanColors(obj) {
+    const result={};
+    for(const [key,defaultValue] of Object.entries(DEFAULT_COLORS)) {
+      // 구버전 프로젝트에는 두 색상이 없으므로 기존 기본 글자색을 그대로 이어받습니다.
+      const inherited=(key==='catchphraseText'||key==='pairNameText')
+        ? normalizeHex(obj&&obj.mainText,defaultValue) : defaultValue;
+      result[key]=normalizeHex(obj&&obj[key],inherited);
+    }
+    return result;
+  }
+  function blendHex(foreground,background,alpha) {
+    const channel=i=>Math.round(parseInt(foreground.slice(i,i+2),16)*alpha+parseInt(background.slice(i,i+2),16)*(1-alpha));
+    return '#'+[1,3,5].map(i=>channel(i).toString(16).padStart(2,'0')).join('');
+  }
+  const C = {
+    get ink(){return state.colors.mainText;}, get gray(){return state.colors.secondaryText;},
+    get sharedBg(){return state.colors.sharedBg;}, get sharedText(){return state.colors.sharedText;},
+    get sharedMuted(){return blendHex(state.colors.sharedText,state.colors.sharedBg,.73);},
+    get sharedDetail(){return blendHex(state.colors.sharedText,state.colors.sharedBg,.87);},
+    get personalDetail(){return blendHex(state.colors.secondaryText,state.colors.mainText,.60);},
+    paper:'#ffffff', faint:'#dbdbdb', light:'#f1f1f1'
+  };
+  const fontFamily = '"Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Pretendard", sans-serif';
+  const $ = id => document.getElementById(id);
+  const uid = () => String(Date.now()) + '-' + Math.random().toString(36).slice(2,8);
+  const freshProject = () => ({
+    pairName:'페어명', catchphrase:'THE TWO OF US', topRightText:'OUR STORY / OUR TIME', colors:cleanColors(), a:{name:'캐릭터 A',caption:'CHARACTER A',nameColor:DEFAULT_PERSONAL.nameColor,secondaryColor:DEFAULT_PERSONAL.secondaryColor,image:null}, b:{name:'캐릭터 B',caption:'CHARACTER B',nameColor:DEFAULT_PERSONAL.nameColor,secondaryColor:DEFAULT_PERSONAL.secondaryColor,image:null},
+    events:[
+      {id:uid(), who:'a', when:'2026.03', title:'시작의 기록', detail:'캐릭터 A에게 일어난 사건을 적어주세요.',bgColor:DEFAULT_PERSONAL.bgColor,borderColor:DEFAULT_PERSONAL.borderColor,dateColor:DEFAULT_PERSONAL.secondaryColor},
+      {id:uid(), who:'shared', when:'2026.05', title:'두 사람의 첫 만남', detail:'함께 겪은 중요한 사건을 이곳에 기록하세요.',dateColor:blendHex(DEFAULT_COLORS.sharedText,DEFAULT_COLORS.sharedBg,.73)},
+      {id:uid(), who:'b', when:'2026.07', title:'새로운 전환점', detail:'캐릭터 B만의 이야기를 적어주세요.',bgColor:DEFAULT_PERSONAL.bgColor,borderColor:DEFAULT_PERSONAL.borderColor,dateColor:DEFAULT_PERSONAL.secondaryColor}
+    ]
+  });
+  const validateProject = obj => {
+    if (!obj || typeof obj !== 'object' || !Array.isArray(obj.events)) throw new Error('유효하지 않은 프로젝트 파일입니다.');
+    const cleanText = (v, limit = 3000) => String(typeof v === 'string' ? v : '').slice(0,limit);
+    const cleanPerson = (p, fallback) => ({
+      name: cleanText(p && p.name || fallback, 100),
+      caption: p && p.caption !== undefined ? cleanText(p.caption, 100) : 'CHARACTER ' + (fallback === '캐릭터 A' ? 'A' : 'B'),
+      nameColor: normalizeHex(p && p.nameColor,normalizeHex(obj.colors && obj.colors.mainText,DEFAULT_PERSONAL.nameColor)),
+      // Previously saved projects used one shared secondary color. Keep that value on import.
+      secondaryColor: normalizeHex(p && p.secondaryColor,normalizeHex(obj.colors && obj.colors.secondaryText,DEFAULT_PERSONAL.secondaryColor)),
+      image: p && typeof p.image === 'string' && /^data:image\/(?:png|jpeg|webp);base64,/i.test(p.image) && p.image.length < 5000000 ? p.image : null
+    });
+    const sourceColors=cleanColors(obj.colors);
+    // Older projects did not save date colors; retain their original visual defaults.
+    const inheritedDateColor=who=>who==='shared'
+      ? blendHex(sourceColors.sharedText,sourceColors.sharedBg,.73)
+      : normalizeHex(obj[who]&&obj[who].secondaryColor,sourceColors.secondaryText);
+    return {
+      pairName: cleanText(obj.pairName, 100),
+      catchphrase: obj.catchphrase === undefined ? 'THE TWO OF US' : cleanText(obj.catchphrase, 100),
+      topRightText: obj.topRightText === undefined ? 'OUR STORY / OUR TIME' : cleanText(obj.topRightText, 100),
+      colors:cleanColors(obj.colors),
+      a:cleanPerson(obj.a, '캐릭터 A'), b:cleanPerson(obj.b, '캐릭터 B'),
+      events:obj.events.slice(0,250).map(e => ({
+        id:uid(), who:['a','b','shared'].includes(e && e.who) ? e.who : 'shared',
+        when:cleanText(e && e.when,200),title:cleanText(e && e.title,300),detail:cleanText(e && e.detail,3000),
+        bgColor:normalizeHex(e && e.bgColor,normalizeHex(obj.colors && obj.colors.personalBg,DEFAULT_PERSONAL.bgColor)),
+        borderColor:normalizeHex(e && e.borderColor,normalizeHex(obj.colors && obj.colors.personalBorder,DEFAULT_PERSONAL.borderColor)),
+        dateColor:normalizeHex(e && e.dateColor,inheritedDateColor(e && e.who)),
+        parallelWithPrevious:!!(e && e.parallelWithPrevious)
+      }))
+    };
+  };
+  let state;
+  try { const stored=localStorage.getItem(STORAGE_KEY); state=stored ? validateProject(JSON.parse(stored)) : freshProject(); }
+  catch (err) { state=freshProject(); }
+  let saveTimer;
+  let toastTimer;
+  let previewRaf;
+  let photoCache={a:{src:null,img:null},b:{src:null,img:null}};
+
+  function toast(message) {
+    const el=$('toast'); el.textContent=message; el.classList.add('show');
+    clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.classList.remove('show'),2700);
+  }
+  function save() {
+    $('saveStatus').textContent='저장 중…';
+    clearTimeout(saveTimer);
+    saveTimer=setTimeout(()=>{
+      try { localStorage.setItem(STORAGE_KEY,JSON.stringify(state)); $('saveStatus').textContent='자동 저장됨'; }
+      catch(e){ $('saveStatus').textContent='저장 공간 부족'; }
+    },220);
+  }
+  function update() { save(); preview(); }
+  function syncColorControls(){
+    document.querySelectorAll('[data-color-picker]').forEach(input=>{ input.value=state.colors[input.dataset.colorPicker]; });
+    document.querySelectorAll('[data-color-hex]').forEach(input=>{ input.value=state.colors[input.dataset.colorHex]; input.classList.remove('invalid'); });
+    document.querySelectorAll('[data-name-color]').forEach(input=>{
+      input.value=state[input.dataset.nameColor].nameColor;
+      input.title='이름 글자색 ' + input.value;
+    });
+    document.querySelectorAll('[data-secondary-color]').forEach(input=>{
+      input.value=state[input.dataset.secondaryColor].secondaryColor;
+      input.title='보조 글자색 ' + input.value;
+    });
+  }
+  function syncBasicFields() {
+    $('pairName').value=state.pairName;
+    $('catchphrase').value=state.catchphrase;
+    $('topRightText').value=state.topRightText;
+    $('nameA').value=state.a.name;
+    $('nameB').value=state.b.name;
+    $('captionA').value=state.a.caption;
+    $('captionB').value=state.b.caption;
+    for (const who of ['a','b']) {
+      const upper=who.toUpperCase(), photo=state[who].image;
+      $('thumb'+upper).src=photo||'';
+      $('thumb'+upper).style.display=photo?'block':'none';
+      $('prompt'+upper).style.display=photo?'none':'block';
+    }
+  }
+  // One timeline row can contain either one shared/personal event or two opposite-side personal events.
+  // Adjacent A/B moments with identical dates are paired automatically. A manual link can pair
+  // the events even when the free-form dates are not spelled exactly alike.
+  function getEventGroups(){
+    const groups=[];
+    for(let i=0;i<state.events.length;){
+      const a=state.events[i],b=state.events[i+1];
+      const sameDate=b && a.when.trim() && a.when.trim()===b.when.trim();
+      if(b && a.who!=='shared' && b.who!=='shared' && a.who!==b.who && (sameDate||b.parallelWithPrevious)){
+        groups.push([a,b]);i+=2;
+      }else{groups.push([a]);i++;}
+    }
+    return groups;
+  }
+  function groupForEvent(event,groups=getEventGroups()){
+    return groups.find(group=>group.some(item=>item.id===event.id));
+  }
+  function newPersonalEvent(who,when='',paired=false){
+    return {id:uid(),who,when,title:'',detail:'',bgColor:DEFAULT_PERSONAL.bgColor,
+      borderColor:DEFAULT_PERSONAL.borderColor,dateColor:state[who].secondaryColor,
+      parallelWithPrevious:paired};
+  }
+  function buildEventCard(event,index) {
+    const card=document.createElement('div');
+    card.className='event-card'+(event.who==='shared'?' common-event':'');
+    card.dataset.id=event.id;
+    const head=document.createElement('div'); head.className='event-card-head';
+    const badge=document.createElement('div'); badge.className='event-badge';
+    const dot=document.createElement('span');dot.className='event-indicator';badge.appendChild(dot);
+    const badgeText=document.createElement('span');
+    badgeText.textContent=event.who==='shared'?'PAIR / 공통 사건':(event.who==='a'?'A / 개인 사건':'B / 개인 사건');
+    badge.appendChild(badgeText);
+    const groups=getEventGroups();
+    const currentGroupIndex=groups.findIndex(group=>group.some(e=>e.id===event.id));
+    const pairedGroup=groups[currentGroupIndex];
+    const controls=document.createElement('div'); controls.className='event-controls';
+    [['up','↑','위로 이동'],['down','↓','아래로 이동'],['remove','×','사건 삭제']].forEach(([action,symbol,label])=>{
+      const button=document.createElement('button'); button.type='button'; button.className='icon-button'+(action==='remove'?' danger':'');
+      button.dataset.action=action; button.setAttribute('aria-label',label); button.title=label;
+      button.textContent=symbol;
+      if ((action==='up'&&currentGroupIndex===0)||(action==='down'&&currentGroupIndex===groups.length-1))button.disabled=true;
+      controls.appendChild(button);
+    });
+    head.append(badge,controls);
+    const body=document.createElement('div');body.className='event-card-body';
+    const fields=document.createElement('div'); fields.className='event-fields';
+    const makeField=(labelText,key,placeholder,tag='input')=>{
+      const wrap=document.createElement('div'),label=document.createElement('label'),input=document.createElement(tag);
+      label.textContent=labelText;
+      input.className='field-control';input.dataset.field=key;input.placeholder=placeholder;input.value=event[key];
+      if(tag==='input') {input.type='text'; input.autocomplete='off';}
+      else input.rows=2;
+      wrap.append(label,input);return wrap;
+    };
+    fields.append(makeField('날짜 / 시기','when','예: 2026.03, 봄'),makeField('사건명','title','사건 제목'));
+    body.append(fields,makeField('사건 내용 (선택)','detail','상세한 내용을 자유롭게 입력하세요','textarea'));
+    if(event.who!=='shared'){
+      const options=document.createElement('div');options.className='parallel-tools';
+      if(pairedGroup.length===2){
+        const hint=document.createElement('span');hint.className='parallel-status';
+        hint.textContent='↔ 두 사람의 사건이 같은 시기에 나란히 표시됩니다';options.appendChild(hint);
+      }else{
+        const add=document.createElement('button');add.type='button';
+        add.className='mini-button parallel-add';add.dataset.action='add-parallel';
+        add.textContent='+ '+(event.who==='a'?'B':'A')+' 동시 사건 추가';
+        options.appendChild(add);
+      }
+      const previous=state.events[index-1];
+      if(previous && previous.who!=='shared' && previous.who!==event.who){
+        const prevGroup=groupForEvent(previous,groups);
+        if(pairedGroup===prevGroup || prevGroup.length===1){
+          const label=document.createElement('label');label.className='parallel-checkbox';
+          const check=document.createElement('input');check.type='checkbox';check.dataset.parallelWithPrevious='1';
+          check.checked=!!event.parallelWithPrevious;
+          const words=document.createElement('span');words.textContent='위 사건과 나란히 (시기가 달라도)';
+          label.append(check,words);options.appendChild(label);
+        }
+      }
+      body.appendChild(options);
+    }
+    {
+      // Each event, including shared ones, has its own independent date color.
+      const colorOptions=document.createElement('div');colorOptions.className='event-color-options';
+      const choices=event.who==='shared'
+        ? [['dateColor','날짜·시기 글자색']]
+        : [['dateColor','날짜·시기 글자색'],['bgColor','배경색'],['borderColor','테두리색']];
+      choices.forEach(([key,labelText])=>{
+        const item=document.createElement('div');item.className='event-color-item';
+        const label=document.createElement('label');label.className='color-label';label.textContent=labelText;
+        const row=document.createElement('div');row.className='color-row';
+        const picker=document.createElement('input');picker.type='color';picker.className='color-picker';picker.dataset.eventColor=key;
+        picker.value=event[key]||(key==='dateColor'
+          ? (event.who==='shared'?C.sharedMuted:state[event.who].secondaryColor)
+          : DEFAULT_PERSONAL[key]);
+        const eventType=event.who==='shared'?'공통 사건':(event.who==='a'?'A 개인 사건':'B 개인 사건');
+        picker.setAttribute('aria-label',eventType+' '+labelText+' 선택');
+        const hex=document.createElement('input');hex.type='text';hex.className='field-control color-hex';hex.dataset.eventHex=key;
+        hex.inputMode='text';hex.spellcheck=false;hex.maxLength=7;hex.value=picker.value.toUpperCase();
+        hex.setAttribute('aria-label',eventType+' '+labelText+' 컬러코드');
+        row.append(picker,hex);item.append(label,row);colorOptions.appendChild(item);
+      });
+      body.append(colorOptions);
+    }
+    card.append(head,body);return card;
+  }
+  function renderEventList() {
+    const list=$('eventList');list.replaceChildren();
+    $('eventCount').textContent=`(${state.events.length})`;
+    if(!state.events.length) {const empty=document.createElement('div');empty.className='empty-events';empty.textContent='사건이 아직 없습니다.\n위의 버튼으로 첫 기록을 추가해 주세요.';empty.style.whiteSpace='pre-line';list.appendChild(empty);}
+    else state.events.forEach((event,index)=>list.appendChild(buildEventCard(event,index)));
+  }
+  function getImage(who) {
+    const src=state[who].image;
+    if (!src) {photoCache[who]={src:null,img:null};return null;}
+    const cached=photoCache[who];
+    if(cached.src===src)return cached.img && cached.img.complete && cached.img.naturalWidth>0 ? cached.img:null;
+    const img=new Image();photoCache[who]={src,img};
+    img.onload=()=>preview(); img.onerror=()=>{photoCache[who]={src,img:null}; preview();};
+    img.src=src;return null;
+  }
+  function font(ctx,size,weight=400){ctx.font=`${weight} ${size}px ${fontFamily}`;}
+  function wrap(ctx,value,maxWidth) {
+    const text=String(value||'').replace(/\r/g,'');
+    if(!text)return [];
+    const result=[];
+    text.split('\n').forEach((para,idx)=>{
+      if(idx>0 && para===''){result.push('');return;}
+      if(para===''){result.push('');return;}
+      let current='';
+      // Character-level fitting preserves long Korean strings and arbitrary date formats.
+      for (const ch of Array.from(para)) {
+        const next=current+ch;
+        if(current && ctx.measureText(next).width>maxWidth){result.push(current.trimEnd());current=ch===' '?'':ch;}
+        else current=next;
+      }
+      if(current) result.push(current.trimEnd());
+    });
+    return result;
+  }
+  function lineText(ctx,lines,x,y,lineH,maxLines=5000) {
+    lines.slice(0,maxLines).forEach((line,i)=>ctx.fillText(line,x,y+i*lineH));
+  }
+  function trackedText(ctx,text,x,y,spacing=2,align='left') {
+    const letters=Array.from(text);let width=letters.reduce((n,ch)=>n+ctx.measureText(ch).width,0)+(letters.length-1)*spacing;
+    let at=x-(align==='center'?width/2:align==='right'?width:0);
+    for(const ch of letters) {ctx.fillText(ch,at,y);at+=ctx.measureText(ch).width+spacing;}
+  }
+  function layout(ctx) {
+    let y=392;
+    const rows=[];
+    for(const group of getEventGroups()){
+      const measured=group.map(e=>{
+        const shared=e.who==='shared';const w=shared?435:225;
+        const inner=w-38;
+        font(ctx,12,500);const dateLines=wrap(ctx,e.when,shared?424:198);
+        font(ctx,shared?24:22,800);const titleLines=wrap(ctx,e.title||'제목 없는 사건',inner);
+        font(ctx,shared?15:14,400);const detailLines=wrap(ctx,e.detail,inner);
+        const dateExtra=Math.max(0,dateLines.length-1)*19;
+        const h=Math.max(shared?125:133,25+16+16+titleLines.length*(shared?31:29)+(detailLines.length?13+detailLines.length*(shared?23:22):0)+23)+dateExtra;
+        return {e,dateLines,dateExtra,titleLines,detailLines,height:h};
+      });
+      // Both cards occupy the same horizontal row, with equal heights and aligned timeline dots.
+      const groupHeight=Math.max(...measured.map(item=>item.height));
+      measured.forEach(item=>rows.push({...item,y,height:groupHeight}));
+      y+=groupHeight+21;
+    }
+    const railEnd=Math.max(555,y+45);
+    const height=railEnd+104;
+    return {rows,railEnd,height};
+  }
+  function drawPortrait(ctx,who,x) {
+    const y=174,r=88;
+    ctx.save();ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.clip();
+    ctx.fillStyle=C.ink;ctx.fillRect(x-r,y-r,r*2,r*2);
+    const img=getImage(who);
+    if(img){ const sw=img.naturalWidth,sh=img.naturalHeight,s=Math.max(2*r/sw,2*r/sh);const dw=sw*s,dh=sh*s;ctx.drawImage(img,x-dw/2,y-dh/2,dw,dh); }
+    else { ctx.fillStyle='#777';font(ctx,52,700);ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(who.toUpperCase(),x,y+3); }
+    ctx.restore();ctx.textBaseline='alphabetic';
+    ctx.textAlign='center'; ctx.fillStyle=state[who].nameColor||DEFAULT_PERSONAL.nameColor;
+    font(ctx,22,800);
+    const name=state[who].name||('캐릭터 '+who.toUpperCase());
+    let nmSize=22;while(nmSize>12){font(ctx,nmSize,800);if(ctx.measureText(name).width<=265)break;nmSize--;}
+    ctx.fillText(name,x,302);
+    const caption=state[who].caption||'';
+    if(caption){
+      let labelSize=11,spacing=1.6,lines=[];
+      const fitLines=()=>{
+        font(ctx,labelSize,800);
+        const out=[];
+        let segment='';
+        for(const ch of Array.from(caption)){
+          const proposed=segment+ch;
+          const chars=Array.from(proposed);
+          if(segment && ctx.measureText(proposed).width+Math.max(0,chars.length-1)*spacing>252){
+            out.push(segment.trimEnd());segment=ch===' '?'':ch;
+          }else segment=proposed;
+        }
+        if(segment)out.push(segment.trimEnd());
+        return out;
+      };
+      do{
+        lines=fitLines();
+        if(lines.length<=3 || labelSize<=8)break;
+        labelSize--;spacing=Math.max(.5,spacing-.4);
+      }while(true);
+      if(lines.length>3){
+        lines=lines.slice(0,3);
+        const last=lines[2];
+        let shortened=last;
+        while(shortened && ctx.measureText(shortened+'…').width+(Array.from(shortened).length)*spacing>252){shortened=shortened.slice(0,-1);}
+        lines[2]=shortened+'…';
+      }
+      ctx.fillStyle=state[who].secondaryColor||DEFAULT_PERSONAL.secondaryColor;
+      lines.forEach((line,i)=>trackedText(ctx,line,x,325+i*14,spacing,'center'));
+    }
+  }
+  function roundedRect(ctx,x,y,w,h,r=0) {
+    ctx.beginPath();if(ctx.roundRect)ctx.roundRect(x,y,w,h,r);else ctx.rect(x,y,w,h);
+  }
+  function drawPersonal(ctx,row){
+    const isA=row.e.who==='a',x=isA?199:465,w=236,railX=isA?172:728;
+    const y=row.y,h=row.height,markY=y+h/2;
+    ctx.strokeStyle=C.ink;ctx.lineWidth=1.7;ctx.beginPath();
+    if(isA){ctx.moveTo(railX,markY);ctx.lineTo(x,markY);}else{ctx.moveTo(x+w,markY);ctx.lineTo(railX,markY);}ctx.stroke();
+    ctx.fillStyle=C.ink;ctx.beginPath();ctx.arc(railX,markY,8,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=row.e.bgColor||DEFAULT_PERSONAL.bgColor;ctx.fillRect(x,y,w,h);
+    ctx.strokeStyle=row.e.borderColor||DEFAULT_PERSONAL.borderColor;ctx.lineWidth=1.1;ctx.strokeRect(x+.5,y+.5,w-1,h-1);
+    const secondaryColor=state[row.e.who].secondaryColor||DEFAULT_PERSONAL.secondaryColor;
+    ctx.fillStyle=row.e.dateColor||secondaryColor;ctx.textAlign='left';font(ctx,12,550);
+    lineText(ctx,row.dateLines,x+19,y+32,19);
+    ctx.fillStyle=C.ink;font(ctx,22,800);
+    const titleY=y+65+row.dateExtra;lineText(ctx,row.titleLines,x+19,titleY,29);
+    if(row.detailLines.length){ctx.fillStyle=blendHex(secondaryColor,C.ink,.60);font(ctx,14,400);lineText(ctx,row.detailLines,x+19,titleY+row.titleLines.length*29+8,22);}
+  }
+  function drawShared(ctx,row) {
+    const x=219,w=462,y=row.y,h=row.height,markY=y+h/2;
+    ctx.strokeStyle=C.ink;ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(172,markY);ctx.lineTo(x,markY);ctx.moveTo(x+w,markY);ctx.lineTo(728,markY);ctx.stroke();
+    for(const dotX of [172,728]) {ctx.fillStyle=C.ink;ctx.beginPath();ctx.arc(dotX,markY,8,0,Math.PI*2);ctx.fill();}
+    ctx.fillStyle=C.sharedBg;ctx.fillRect(x,y,w,h);
+    // Set date fill explicitly: previously it inherited the background color and disappeared.
+    ctx.fillStyle=row.e.dateColor||C.sharedMuted;
+    ctx.textAlign='right';font(ctx,12,500);
+    lineText(ctx,row.dateLines,x+w-20,y+32,19);
+    // Draw shared titles from the card's left edge even when the date is blank.
+    ctx.textAlign='left';
+    ctx.fillStyle=C.sharedText;font(ctx,24,800);
+    const titleY=y+65+row.dateExtra;lineText(ctx,row.titleLines,x+19,titleY,31);
+    if(row.detailLines.length){ctx.fillStyle=C.sharedDetail;font(ctx,15,400);lineText(ctx,row.detailLines,x+19,titleY+row.titleLines.length*31+9,23);}
+  }
+  function drawTimeline(canvas,scale=1){
+    // Layout is always calculated in logical 900 px units, independent of output resolution.
+    const ctx=canvas.getContext('2d');
+    const L=layout(ctx);
+    canvas.width=Math.round(W*scale);canvas.height=Math.round(L.height*scale);
+    const c=canvas.getContext('2d');c.setTransform(scale,0,0,scale,0,0);
+    c.fillStyle=C.paper;c.fillRect(0,0,W,L.height);
+    c.strokeStyle='#e2e2e2';c.lineWidth=1;
+    c.beginPath();c.moveTo(62,57);c.lineTo(838,57);c.stroke();
+    c.fillStyle=C.gray;font(c,10,750);trackedText(c,'PAIR ARCHIVE',62,40,2.15);
+    // Editable top-right label; fit long phrases without overlapping the left label.
+    const topRightText=state.topRightText||'';
+    if(topRightText){
+      const availableWidth=350;
+      let fontSize=10,spacing=1.55;
+      const measureWidth=()=>{
+        font(c,fontSize,750);
+        return Array.from(topRightText).reduce((w,ch)=>w+c.measureText(ch).width,0)+Math.max(0,Array.from(topRightText).length-1)*spacing;
+      };
+      while(measureWidth()>availableWidth && fontSize>7){fontSize-=1;spacing=Math.max(.3,spacing-.3);}
+      c.save(); c.beginPath(); c.rect(838-availableWidth,18,availableWidth+2,33); c.clip();
+      trackedText(c,topRightText,838,40,spacing,'right');
+      c.restore();
+    }
+    c.textAlign='center';c.fillStyle=state.colors.catchphraseText;
+    const phrase=state.catchphrase||'';
+    if(phrase){
+      let phraseSize=12,tracking=2.5;
+      let phraseWidth=0;
+      do{
+        font(c,phraseSize,800);
+        const letters=Array.from(phrase);
+        phraseWidth=letters.reduce((total,ch)=>total+c.measureText(ch).width,0)+Math.max(0,letters.length-1)*tracking;
+        if(phraseWidth<=390 || phraseSize<=7)break;
+        phraseSize-=1;
+        tracking=Math.max(.4,tracking-.3);
+      }while(true);
+      // 글이 길어져도 캐릭터 사진 영역을 침범하지 않도록 제한합니다.
+      if(phraseWidth>390){c.save();c.beginPath();c.rect(255,80,390,37);c.clip();}
+      trackedText(c,phrase,450,106,tracking,'center');
+      if(phraseWidth>390)c.restore();
+    }
+    const title=state.pairName||'페어명';let size=42,titleLines=[];
+    while(size>=18){font(c,size,800);titleLines=wrap(c,title,320);if(titleLines.length<=2)break;size-=2;}
+    c.fillStyle=state.colors.pairNameText;c.textAlign='center';
+    let ty=titleLines.length===1?176:156;
+    titleLines.forEach((line,i)=>c.fillText(line,450,ty+i*(size+4)));
+    c.strokeStyle=C.ink;c.lineWidth=2;c.beginPath();c.moveTo(424,226);c.lineTo(476,226);c.stroke();
+    drawPortrait(c,'a',172);drawPortrait(c,'b',728);
+    const lineStart=359;
+    c.strokeStyle=C.ink;c.lineWidth=2;
+    c.beginPath();c.moveTo(172,lineStart);c.lineTo(172,L.railEnd);c.moveTo(728,lineStart);c.lineTo(728,L.railEnd);c.stroke();
+    L.rows.forEach(row=>{if(row.e.who==='shared')drawShared(c,row);else drawPersonal(c,row);});
+    if(L.rows.length===0){
+      c.strokeStyle='#d0d0d0';c.strokeRect(222,402,456,105);
+      c.fillStyle='#999';font(c,17,600);c.textAlign='center';c.fillText('두 사람의 이야기를 추가해 주세요',450,461);
+    }
+    for(const lx of [172,728]){c.fillStyle=C.ink;c.beginPath();c.arc(lx,L.railEnd,4,0,Math.PI*2);c.fill();}
+    const footerLine=L.railEnd+40;
+    c.strokeStyle='#dedede';c.lineWidth=1;c.beginPath();c.moveTo(62,footerLine);c.lineTo(838,footerLine);c.stroke();
+    return L;
+  }
+  function preview(){
+    if(previewRaf)cancelAnimationFrame(previewRaf);
+    previewRaf=requestAnimationFrame(()=>{
+      const scale=Math.min(window.devicePixelRatio||1,2);
+      const L=drawTimeline($('previewCanvas'),scale);
+      $('previewSize').textContent=`900 × ${Math.ceil(L.height)} PX · PNG`;
+    });
+  }
+  function downloadBlob(blob,filename){
+    const url=URL.createObjectURL(blob),a=document.createElement('a');
+    a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),2000);
+  }
+  function filename(ext){const cleaned=(state.pairName||'페어틀').replace(/[\\/:*?"<>|\x00-\x1f]/g,'').trim().slice(0,45)||'페어틀';return cleaned+'.'+ext;}
+  function handleUpload(who,file){
+    if(!file)return;
+    if(!file.type.startsWith('image/')){toast('이미지 파일을 선택해 주세요.');return;}
+    const url=URL.createObjectURL(file),img=new Image();
+    img.onload=()=>{
+      try{
+        const side=650,c=document.createElement('canvas');c.width=side;c.height=side;
+        const ctx=c.getContext('2d');const size=Math.min(img.naturalWidth,img.naturalHeight);
+        ctx.fillStyle='#fff';ctx.fillRect(0,0,side,side);
+        ctx.drawImage(img,(img.naturalWidth-size)/2,(img.naturalHeight-size)/2,size,size,0,0,side,side);
+        state[who].image=c.toDataURL('image/jpeg',.88);
+        photoCache[who]={src:null,img:null};syncBasicFields();update();toast('캐릭터 '+who.toUpperCase()+' 사진이 적용되었습니다.');
+      }catch(err){toast('사진을 처리할 수 없습니다. 다른 이미지를 선택해 주세요.');}
+      finally{URL.revokeObjectURL(url);$('image'+who.toUpperCase()).value='';}
+    };
+    img.onerror=()=>{URL.revokeObjectURL(url);toast('이미지를 불러올 수 없습니다.');};
+    img.src=url;
+  }
+  $('pairName').addEventListener('input',e=>{state.pairName=e.target.value;update();});
+  $('catchphrase').addEventListener('input',e=>{state.catchphrase=e.target.value;update();});
+  $('topRightText').addEventListener('input',e=>{state.topRightText=e.target.value;update();});
+  document.querySelectorAll('[data-color-picker]').forEach(picker=>picker.addEventListener('input',()=>{
+    const key=picker.dataset.colorPicker;
+    state.colors[key]=normalizeHex(picker.value,DEFAULT_COLORS[key]);
+    const hex=document.querySelector(`[data-color-hex="${key}"]`);
+    hex.value=state.colors[key];hex.classList.remove('invalid');
+    update();
+  }));
+  document.querySelectorAll('[data-color-hex]').forEach(input=>{
+    input.addEventListener('input',()=>{
+      const key=input.dataset.colorHex;
+      const valid=normalizeHex(input.value);
+      input.classList.toggle('invalid',!valid);
+      if(!valid)return;
+      state.colors[key]=valid;
+      document.querySelector(`[data-color-picker="${key}"]`).value=valid;
+      update();
+    });
+    input.addEventListener('blur',()=>{input.value=state.colors[input.dataset.colorHex];input.classList.remove('invalid');});
+  });
+  $('resetColors').addEventListener('click',()=>{
+    state.colors=cleanColors();
+    for(const who of ['a','b']){state[who].nameColor=DEFAULT_PERSONAL.nameColor;state[who].secondaryColor=DEFAULT_PERSONAL.secondaryColor;}
+    for(const event of state.events){
+      event.bgColor=DEFAULT_PERSONAL.bgColor;event.borderColor=DEFAULT_PERSONAL.borderColor;
+      event.dateColor=event.who==='shared'
+        ? blendHex(DEFAULT_COLORS.sharedText,DEFAULT_COLORS.sharedBg,.73)
+        : DEFAULT_PERSONAL.secondaryColor;
+    }
+    syncColorControls();renderEventList();update();toast('색상을 기본값으로 되돌렸습니다.');
+  });
+  document.querySelectorAll('[data-name-color]').forEach(picker=>picker.addEventListener('input',()=>{
+    const who=picker.dataset.nameColor;
+    state[who].nameColor=normalizeHex(picker.value,DEFAULT_PERSONAL.nameColor);
+    picker.title='이름 글자색 '+state[who].nameColor;
+    update();
+  }));
+  document.querySelectorAll('[data-secondary-color]').forEach(picker=>picker.addEventListener('input',()=>{
+    const who=picker.dataset.secondaryColor;
+    state[who].secondaryColor=normalizeHex(picker.value,DEFAULT_PERSONAL.secondaryColor);
+    picker.title='보조 글자색 '+state[who].secondaryColor;
+    update();
+  }));
+  for(const who of ['a','b']){
+    const cap=who.toUpperCase();
+    $('name'+cap).addEventListener('input',e=>{state[who].name=e.target.value;update();});
+    $('caption'+cap).addEventListener('input',e=>{state[who].caption=e.target.value;update();});
+    $('image'+cap).addEventListener('change',e=>handleUpload(who,e.target.files[0]));
+    $('clear'+cap).addEventListener('click',()=>{state[who].image=null;photoCache[who]={src:null,img:null};syncBasicFields();update();toast('사진을 제거했습니다.');});
+  }
+  document.querySelectorAll('[data-add]').forEach(button=>button.addEventListener('click',()=>{
+    const who=button.dataset.add;
+    const event=who==='shared'
+      ? {id:uid(),who,when:'',title:'',detail:'',bgColor:DEFAULT_PERSONAL.bgColor,borderColor:DEFAULT_PERSONAL.borderColor,dateColor:C.sharedMuted,parallelWithPrevious:false}
+      : newPersonalEvent(who);
+    state.events.push(event);
+    renderEventList();update();
+    const card=Array.from(document.querySelectorAll('.event-card')).find(c=>c.dataset.id===event.id);
+    if(card){card.scrollIntoView({behavior:'smooth',block:'center'});card.querySelector('[data-field="when"]').focus({preventScroll:true});}
+    toast('새 사건이 추가되었습니다.');
+  }));
+  $('eventList').addEventListener('input',e=>{
+    const target=e.target;
+    const card=target.closest('.event-card');if(!card)return;
+    const item=state.events.find(e=>e.id===card.dataset.id);
+    if(!item)return;
+    if(target.dataset.parallelWithPrevious){
+      item.parallelWithPrevious=target.checked;
+      renderEventList();update();return;
+    }
+    if(target.dataset.field){item[target.dataset.field]=target.value;update();return;}
+    const key=target.dataset.eventColor||target.dataset.eventHex;
+    if(!key || !['bgColor','borderColor','dateColor'].includes(key))return;
+    const valid=normalizeHex(target.value);
+    if(target.dataset.eventHex)target.classList.toggle('invalid',!valid);
+    if(!valid)return;
+    item[key]=valid;
+    const sibling=card.querySelector(`[data-${target.dataset.eventColor?'event-hex':'event-color'}="${key}"]`);
+    if(sibling){sibling.value=valid;sibling.classList.remove('invalid');}
+    update();
+  });
+  $('eventList').addEventListener('focusout',e=>{
+    const input=e.target;
+    if(!input.dataset.eventHex)return;
+    const card=input.closest('.event-card');
+    const item=card && state.events.find(e=>e.id===card.dataset.id);
+    if(!item)return;
+    input.value=item[input.dataset.eventHex];input.classList.remove('invalid');
+  });
+  $('eventList').addEventListener('click',e=>{
+    const button=e.target.closest('[data-action]');if(!button)return;
+    const card=button.closest('.event-card'),idx=state.events.findIndex(item=>item.id===card.dataset.id);
+    if(idx<0)return;
+    const action=button.dataset.action;
+    if(action==='remove'){
+      state.events.splice(idx,1);
+    }else if(action==='add-parallel'){
+      const source=state.events[idx];
+      if(source.who==='shared' || groupForEvent(source).length===2)return;
+      const other=source.who==='a'?'b':'a';
+      const counterpart=newPersonalEvent(other,source.when,true);
+      state.events.splice(idx+1,0,counterpart);
+      renderEventList();update();
+      const newCard=Array.from(document.querySelectorAll('.event-card')).find(el=>el.dataset.id===counterpart.id);
+      if(newCard){newCard.scrollIntoView({behavior:'smooth',block:'center'});newCard.querySelector('[data-field="title"]').focus({preventScroll:true});}
+      toast('같은 높이에 표시할 '+other.toUpperCase()+'의 사건을 추가했습니다.');
+      return;
+    }else if(action==='up'||action==='down'){
+      const groups=getEventGroups();
+      const current=groups.findIndex(group=>group.some(item=>item.id===card.dataset.id));
+      const next=current+(action==='up'?-1:1);
+      if(next<0||next>=groups.length)return;
+      [groups[current],groups[next]]=[groups[next],groups[current]];
+      state.events=groups.flat();
+    }
+    renderEventList();update();
+  });
+  $('downloadPng').addEventListener('click',()=>{
+    const btn=$('downloadPng'),original=btn.innerHTML;
+    btn.disabled=true;btn.textContent='PNG 이미지 생성 중…';
+    // Let the button state paint before rendering a potentially long timeline.
+    setTimeout(()=>{
+      try {
+        const c=document.createElement('canvas');
+        // Limit export height for browser canvas compatibility, while keeping maximum practical quality.
+        const measure=document.createElement('canvas').getContext('2d');const h=layout(measure).height;
+        const scale=Math.max(1,Math.min(3,Math.floor(15000/h)));
+        drawTimeline(c,scale);
+        if(c.toBlob){c.toBlob(blob=>{if(blob){downloadBlob(blob,filename('png'));toast('완성 이미지를 다운로드했습니다.');}else toast('이미지 생성에 실패했습니다.');btn.disabled=false;btn.innerHTML=original;},'image/png');}
+        else {const a=document.createElement('a');a.href=c.toDataURL('image/png');a.download=filename('png');a.click();toast('완성 이미지를 다운로드했습니다.');btn.disabled=false;btn.innerHTML=original;}
+      }catch(err){btn.disabled=false;btn.innerHTML=original;toast('이미지 저장 중 오류가 발생했습니다. 사건 수를 줄여 다시 시도해 주세요.');console.error(err);}
+    },30);
+  });
+  $('exportProject').addEventListener('click',()=>{
+    const blob=new Blob([JSON.stringify({version:1,...state},null,2)],{type:'application/json;charset=utf-8'});
+    downloadBlob(blob,filename('json'));toast('프로젝트 파일을 다운로드했습니다.');
+  });
+  $('importProject').addEventListener('click',()=>$('projectInput').click());
+  $('projectInput').addEventListener('change',async e=>{
+    const file=e.target.files[0];if(!file)return;
+    try{
+      const text=await file.text();const next=validateProject(JSON.parse(text));
+      if(!confirm('현재 입력 내용을 불러온 프로젝트로 교체하시겠습니까?'))return;
+      state=next;photoCache={a:{src:null,img:null},b:{src:null,img:null}};syncBasicFields();syncColorControls();renderEventList();update();toast('프로젝트를 불러왔습니다.');
+    }catch(err){toast(err.message||'프로젝트 파일을 확인해 주세요.');}
+    finally{e.target.value='';}
+  });
+  $('resetButton').addEventListener('click',()=>{
+    if(!confirm('모든 입력 내용과 사진을 초기화하시겠습니까?'))return;
+    state={pairName:'',catchphrase:'',topRightText:'',colors:cleanColors(),a:{name:'',caption:'',nameColor:DEFAULT_PERSONAL.nameColor,secondaryColor:DEFAULT_PERSONAL.secondaryColor,image:null},b:{name:'',caption:'',nameColor:DEFAULT_PERSONAL.nameColor,secondaryColor:DEFAULT_PERSONAL.secondaryColor,image:null},events:[]};
+    photoCache={a:{src:null,img:null},b:{src:null,img:null}};
+    syncBasicFields();syncColorControls();renderEventList();update();toast('전체 내용이 초기화되었습니다.');
+  });
+  window.addEventListener('resize',()=>preview());
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(preview);
+  syncBasicFields();syncColorControls();renderEventList();preview();
+})();
+</script>
+</body>
+</html>
